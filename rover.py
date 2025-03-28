@@ -5,11 +5,12 @@ import string
 
 # Function to handle path processing for each rover
 def process_rover_path(rover, minefield, mines):
+    rover[2] = 'Moving'
     filename = f'path_{rover[0]}.txt'
+    if not rover[1]: return rover, mines
     cmnd_strng = rover[1].upper()               
-    current_row = rover[3][0]                                     
-    current_column = rover[3][1]                                  
-    current_direction = 2
+    current_row, current_column = rover[3]                                  
+    current_direction = rover[5]
     num_row = len(minefield)
     num_column = len(minefield[0])                               
     path = np.zeros((num_row, num_column), dtype=int)   
@@ -18,28 +19,36 @@ def process_rover_path(rover, minefield, mines):
     for cmnd in cmnd_strng:
         rover[4] += cmnd
         if cmnd == 'M':
+            print(f'M: {current_row}.{current_column}',end='')
             if minefield[current_row][current_column] == 1:
                 explode = True
             else:
                 if current_direction == 0:
-                    current_row = (current_row - 1) % num_row
+                    if current_row - 1 > -1: current_row -= 1
                 elif current_direction == 1:
-                    current_column = (current_column + 1) % num_column
+                    if current_column + 1 < num_column: current_column += 1
                 elif current_direction == 2:
-                    current_row = (current_row + 1) % num_row
+                    if current_row + 1 < num_row: current_row += 1
                 elif current_direction == 3:
-                    current_column = (current_column - 1) % num_column
+                    if current_column - 1 > -1: current_column -= 1
             path[current_row][current_column] = 1
+            print(f' to {current_row}.{current_column}')
         elif cmnd == 'R':
+            print(f'R: {current_direction}',end='')
             current_direction = (current_direction + 1) % 4
+            print(f' to {current_direction}')
         elif cmnd == 'L':
+            print(f'L: {current_direction}',end='')
             current_direction = (current_direction - 1) % 4
+            print(f' to {current_direction}')
         elif cmnd == 'D':
+            print('D')
             if minefield[current_row][current_column] == 1:
-                for mine in mines:
-                    serial_number, [row, column] = mine
+                for i, mine in enumerate(mines):
+                    serial_number, [row, column], status = mine
                     if row == current_row and column == current_column:
                         disarm_mine(serial_number)
+                        mines[i][2] = 'Deactivated'
                 minefield[current_row][current_column] = 0
             else:
                 minefield[current_row][current_column] = 0
@@ -56,11 +65,17 @@ def process_rover_path(rover, minefield, mines):
             rover[1] = None
             rover[2] = 'Eliminated'
             rover[3] = [current_row, current_column]
-            return rover
+            rover[4] = ''
+            rover[5] = 2
+            rover[6].append(path.tolist())
+            return rover, mines
     rover[1] = None
     rover[2] = 'Finished'
     rover[3] = [current_row, current_column]
-    return rover
+    rover[4] = ''
+    rover[5] = current_direction
+    rover[6].append(path.tolist())
+    return rover, mines
 
 # Function disarming mines
 def disarm_mine(serial_number):

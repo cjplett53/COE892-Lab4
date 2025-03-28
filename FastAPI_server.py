@@ -7,7 +7,7 @@ from typing import Optional
 
 app = FastAPI(title='Ground Control Server')
 
-def initialize(num_rows=10, num_columns=10):
+def initialize(num_rows=5, num_columns=5):
     # Initially there is no mines and the minefield is 10 by 10
     global minefield
     global mines
@@ -26,7 +26,10 @@ def load_map():
 
 def update_map(num_rows, num_columns):
     global minefield
-    minefield = load_map()
+    global mines
+    global rovers
+    rovers = [rover for rover in rovers if 0 <= rover[3][0] < num_rows and 0 <= rover[3][1] < num_columns]
+    mines = [mine for mine in mines if 0 <= mine[1][0] < num_rows and 0 <= mine[1][1] < num_columns]
     new_minefield = np.zeros((num_rows, num_columns), dtype=int)
     for i in range(num_rows):
         for j in range(num_columns):
@@ -79,12 +82,11 @@ def deactivate_mine(id):
 
 def activate_mine(serial_number, row, column):
     global minefield
-    minefield = load_map()
     if minefield[row][column] == 1:
         return 'Error: Mine already present at this cell.'
     minefield[row][column] = 1
     global mines
-    mines.append([serial_number, [row, column]])
+    mines.append([serial_number, [row, column], 'Active'])
     return f'Mine {len(mines)-1} added successfully.'
 
 def update_mine(id, serial_number=None, new_row=None, new_column=None):
@@ -94,13 +96,14 @@ def update_mine(id, serial_number=None, new_row=None, new_column=None):
         mine = mines[id]
         if serial_number:
             mine[0] = serial_number
-        if new_row or new_column:
-            minefield[mine[1][0]][mine[1][1]] = 0
-            if new_row:
-                mine[1][0] = new_row
-            if new_column:
-                mine[1][1] = new_column
-            minefield[mine[1][0]][mine[1][1]] = 1
+        old_row, old_column = mine[1]
+        minefield[old_row][old_column] = 0
+        if new_row is not None:
+            mine[1][0] = new_row
+        if new_column is not None:
+            mine[1][1] = new_column
+        new_row, new_column = mine[1]
+        minefield[new_row][new_column] = 1
         mines[id] = mine
         return f'Mine {mine[0]} updated to location ({mine[1][0]}, {mine[1][1]}).'
     else:
@@ -163,7 +166,7 @@ def load_rovers():
 def create_rover(path):
     global rovers
     id = len(rovers)
-    rovers.append([id, path, 'Not Started', [0,0], ''])
+    rovers.append([id, path, 'Not Started', [0,0], '', 2, []])
     return f'Rover {len(rovers)-1} successfully added.'
 
 def retrieve_rover(id):
@@ -195,7 +198,7 @@ def dispatch_rover(id):
     global mines
     if id < len(rovers):
         rover = rovers[id]
-        rover = process_rover_path(rover, minefield, mines)
+        rover, mines = process_rover_path(rover, minefield, mines)
         rovers[id] = rover
         return rover
     else:

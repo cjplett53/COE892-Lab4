@@ -40,15 +40,38 @@ def display_map(map):
         print()
 
 def display_mines(mines):
-    print('Current Mine Listing')
-    for id, mine in enumerate(mines):
-        print(f'ID: {id}, Serial Number: {mine[0]}, Location: ({mine[1][0]}, {mine[1][1]})')
+    if mines:
+        print('\nCurrent Mine Listing')
+        for id, mine in enumerate(mines):
+            print(f'ID: {id}, Serial Number: {mine[0]}, Location: ({mine[1][0]}, {mine[1][1]}), Status: {mine[2]}')
+    else: print('\nThere are no mines currently.')
 
 def display_rovers(rovers):
     if rovers: print('\nRovers')
     else: print('\nThere are no rovers currently.')
     for id, rover in enumerate(rovers):
         print(f'ID: {id}, Path: {rover[1]}, Status: {rover[2]}, Current Location: {rover[3]}')
+
+def get_path():
+    valid_commands = {'m', 'M', 'd', 'D', 'l', 'L', 'r', 'R'}
+    while True:
+        path = input('\nCommands\n M: Move forward\n D: Disarm mine\n L: Turn left\n R: Turn right\nPlease enter string of commands: ')
+        if all(char in valid_commands for char in path):
+            return path
+        else:
+            print('\nInvalid input. Character commands must be of type M, D, L, or R.')
+
+def display_path(paths):
+    if paths:
+        print('\nMost recent path')
+        recent_path = paths[len(paths)-1]
+        for row in recent_path:
+            for cell in row:
+                if cell == 0:
+                    print('0 ', end='')
+                else:
+                    print('* ', end='')
+            print()
 
 def commence_operations():
     print('\nWelcome to FastAPI Operations!\n')
@@ -91,8 +114,8 @@ def commence_operations():
                 if response.status_code == 200:
                     mine_data = response.json()
                     mine = mine_data['mine']
-                    if mine: print(f'Mine {mine[0]} found at ({mine[1][0]}, {mine[1][1]}).')
-                    else: print(f'No mine found with {serial_number} as serial number.')
+                    if mine: print(f'Mine {mine[0]} found at ({mine[1][0]}, {mine[1][1]}), status, {mine[2]}.')
+                    else: print(f'No mine found with ID, {id}.')
             elif mines_selection == 3:
                 id = input('\nPlease enter ID of mine to delete: ')
                 endpoint = f'{url}mines/{id}'
@@ -156,7 +179,7 @@ def commence_operations():
                     else: print(f'No rover found with {id} as ID.')
                 else: print('System error occurred during retrieval of rover.')
             elif rovers_selection == 3:
-                path = input('\nPlease enter string of commands: ')
+                path = get_path()
                 endpoint = f'{url}rovers'
                 payload = {'path': path}
                 response = requests.post(endpoint, json=payload)
@@ -174,7 +197,7 @@ def commence_operations():
                 else: print('System error occurred during deletion of rover.')
             elif rovers_selection == 5:
                 id = int(input('\nPlease enter ID of rover you wish to send commands to: '))
-                new_path = input('Please enter updated commands to send to Rover: ')
+                new_path = get_path()
                 endpoint = f'{url}rovers/{id}'
                 payload = {'new_path': new_path}
                 response = requests.put(endpoint, json=payload)
@@ -190,6 +213,7 @@ def commence_operations():
                     rover = response.json()
                     if rover[2] == 'Finished':
                         print(f'Rover {rover[0]} has successfully completed commands and is awaiting further orders at {rover[3]}.')
+                        display_path(rover[6])
                     else:
                         print(f'Rover {rover[0]} has been eliminated.')
                 else: print('System error occurred during deletion of rover.')
